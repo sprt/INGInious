@@ -10,6 +10,14 @@ directory of your task.
 
 Here is a simple example of a *run* file, compatible with the *default* environment,
 that simply returns that the student's code is OK:
+
+::
+
+    !feedback-result success
+
+This is actually an IPython code. You can actually use your favorite shell. Here is an
+equivalent script in bash
+
 ::
 
     #!/bin/bash
@@ -22,17 +30,67 @@ commands (also available as python libraries) to interact with the backend.
 By default, the script is run inside the container in the /task directory, by a non-root
 user. You can modify the container to change this (and everything else).
 
+IPython is the default shell
+----------------------------
+
+When your run script does not indicate a shebang (i.e. does not begin with `#!`) and is not a binary file,
+INGInious runs your script throught IPython.
+
+IPython is a Python interpreter that adds some very useful features to Python, notably magic commands.
+
+The main feature that you will use is probably the bang (`!`) magic command, that allows your to run a command
+like if you were in bash (or any "basic" shell):
+
+::
+
+    # run a command
+    ! touch hello.txt
+
+    # you can store the output, as an array of line
+    out = !ls -1
+
+    # we are still in python
+    length = len(out)
+    print(length, ";".join(out))
+
+By default, the INGInious version of IPython loads utility libraries of INGInious (feedback, input, lang, rst)
+into the global namespace, so you don't have to.
+
+If you want to use the INGInious IPython interpreter in another script, the interpreter is
+located at `/bin/inginious-ipython`.
+
 Feedback commands
 -----------------
 
 feedback-result
 ```````````````
-The *feedback-result* command sets the submission result of a task, or a problem,
-and uses the following syntax :
+The *feedback-result* command sets the submission result of a task, or a problem.
 
-::
+.. tabs::
 
-    feedback-result [-i|--id PROBLEM_ID] RESULT
+    .. code-tab:: ipython3
+
+        # set the global result
+        feedback.set_global_result("success")  # Set global result to success
+
+        # set the result of a specific suproblem
+        feedback.set_problem_result("failed", "q1")  # Set 'q1' subproblem result to failed
+
+    .. code-tab:: py
+
+        from inginious import feedback
+
+        # set the global result
+        feedback.set_global_result("success")  # Set global result to success
+
+        # set the result of a specific suproblem
+        feedback.set_problem_result("failed", "q1")  # Set 'q1' subproblem result to failed
+
+    .. code-tab:: bash
+
+        # format: feedback-result [-i|--id PROBLEM_ID] RESULT
+        feedback-result success  # Set global result to success
+        feedback-result -i q1 failed  # Set 'q1' subproblem result to failed
 
 The execution result can be of different types:
 
@@ -42,42 +100,35 @@ The execution result can be of different types:
 - overflow :there was a memory/disk overflow
 - crash : the tests crashed
 
-For instance, the following command will inform that the student succeeded:
-
-::
-
-    feedback-result success
-
-**In Python** : the equivalent command can be directly obtained with:
-
-.. code-block:: python
-
-    from inginious import feedback
-    feedback.set_global_result("success") # Set global result to success
-    feedback.set_problem_result("failed", "q1") # Set 'q1' subproblem result to failed
+Any other type will be modified to "crash".
 
 feedback-grade
 ``````````````
-The *feedback-grade* command sets the submission grade and uses the following syntax:
-::
 
-    feedback-grade GRADE
+The *feedback-grade* command sets the submission grade.
 
-If no grade is specified, the result score will be binary. This means that a failed
+.. tabs::
+
+    .. code-tab:: ipython3
+
+        feedback.set_grade(87.8) # Set the grade to 87.8%
+
+    .. code-tab:: py
+
+        from inginious import feedback
+        feedback.set_grade(87.8) # Set the grade to 87.8%
+
+    .. code-tab:: bash
+
+        # format: feedback-grade GRADE
+        feedback-grade 87.8
+
+
+If no grade is specified (i.e. the command is never called), the result score will be binary.
+This means that a failed
 submission will give a 0.0% score to the student, while a successful submission will
-give a 100.0% score to the student. For instance, the following command will give
-an 87.8% grade to the student:
+give a 100.0% score to the student.
 
-::
-
-    feedback-grade 87.8
-
-**In Python** : the equivalent command can be directly obtained with:
-
-.. code-block:: python
-
-    from inginious import feedback
-    feedback.set_grade(87.8) # Set the grade to 87.8%
 
 feedback-msg-tpl
 ````````````````
@@ -92,34 +143,60 @@ argument to the command, *feedback-msg-tpl* will attempt to find the template, b
 - `[local_dir]/TPLNAME.tpl`
 
 Once found, the template is parsed using `Jinja2 <http://jinja.pocoo.org/docs/2.9/>`, which allows you to send parameters to the template.
-These parameters should be given in the command line, in the form `name=value`:
+
+.. tabs::
+
+    .. code-tab:: ipython3
+
+        # format:
+        # feedback.set_feedback_from_tpl(template_name, template_options, problem_id=None, append=False)
+        # template_name is the file to format. See above for details.
+        # template_options is a dict in the form {name: value}. See below
+        # problem_id is the problem id to which the feedback must be assigned. If None, the feedback is global
+        # append is a boolean indicating if the feedback must be appended or not (overwritting the current feedback)
+
+        feedback.set_feedback_from_tpl("feedback.tpl", {"option1":"value1", "anothername":"anothervalue"})
+
+    .. code-tab:: py
+
+        from inginious import feedback
+
+        # format:
+        # feedback.set_feedback_from_tpl(template_name, template_options, problem_id=None, append=False)
+        # template_name is the file to format. See above for details.
+        # template_options is a dict in the form {name: value}. See below
+        # problem_id is the problem id to which the feedback must be assigned. If None, the feedback is global
+        # append is a boolean indicating if the feedback must be appended or not (overwritting the current feedback)
+
+        feedback.set_feedback_from_tpl("feedback.tpl", {"option1":"value1", "anothername":"anothervalue"})
+
+    .. code-tab:: bash
+
+        # format: feedback-msg-tpl [-a | --append] [-i | --id PROBLEM_ID] TPLNAME [option1=value1 option2=value2 ...]
+        # TPLNAME is the file to format. See above for details.
+        # Options can be indicated at the end of the command, and will be passed to the template (see below)
+        # --append is a boolean flag indicating if the feedback must be appended or not (overwritting the current feedback)
+        # --id PROBLEM_ID. PROBLEM_ID is the problem id to which the feedback must be assigned.
+        #                  If not indicated, the feedback is global
+
+        feedback-msg-tpl "feedback.tpl" option1=value1 anothername=anothervalue
+
+
+Inside your template (named `feedback.tpl` in the examples above), you can use these parameters like this:
 
 ::
 
-    feedback-msg-tpl TPLNAME option1=value1 option2=value2
-
-Inside your template, you can use these parameters like this:
-
-::
-
-    Option 1 was {{ option1 }} and the option 2 was {{ option 2 }}
+    Option 1 was {{ option1 }} and the option 2 was {{ anothername }}
 
 Which will return
 
 ::
 
-    Option 1 was value1 and the option 2 was value2
+    Option 1 was value1 and the option 2 was anothervalue
 
 See the Jinja2 documentation to discover all possibilities.
 
 Your template must return a valid RestructuredText.
-
-Optional parameters:
-
--a, --append                        append to current feedback, if not specified, replace the
-                                    current feedback.
--i, --id PROBLEM_ID                 problem id to which associate the feedback, leave empty
-                                    for the whole task.
 
 feedback-msg
 ````````````
